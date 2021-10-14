@@ -176,7 +176,7 @@ resource "aws_lambda_function" "ignore_environment_variables" {
   depends_on = [null_resource.archive, aws_s3_bucket_object.lambda_package, aws_cloudwatch_log_group.lambda]
   
   lifecycle {
-    ignore_changes = [environment.variables]
+    ignore_changes = [environment]
   }
 }
 
@@ -235,8 +235,8 @@ resource "aws_cloudwatch_log_group" "lambda" {
 resource "aws_lambda_provisioned_concurrency_config" "current_version" {
   count = var.create && var.create_function && !var.create_layer && var.provisioned_concurrent_executions > -1 ? 1 : 0
 
-  function_name = aws_lambda_function.this[0].function_name
-  qualifier     = aws_lambda_function.this[0].version
+  function_name = var.ignore_environment_variables ? aws_lambda_function.ignore_environment_variables[0].function_name : aws_lambda_function.default[0].function_name
+  qualifier     = var.ignore_environment_variables ? aws_lambda_function.ignore_environment_variables[0].version : aws_lambda_function.default[0].version
 
   provisioned_concurrent_executions = var.provisioned_concurrent_executions
 }
@@ -248,8 +248,8 @@ locals {
 resource "aws_lambda_function_event_invoke_config" "this" {
   for_each = var.create && var.create_function && !var.create_layer && var.create_async_event_config ? local.qualifiers : {}
 
-  function_name = aws_lambda_function.this[0].function_name
-  qualifier     = each.key == "current_version" ? aws_lambda_function.this[0].version : null
+  function_name = var.ignore_environment_variables ? aws_lambda_function.ignore_environment_variables[0].function_name : aws_lambda_function.default[0].function_name
+  qualifier     = each.key == "current_version" ? (var.ignore_environment_variables ? aws_lambda_function.ignore_environment_variables[0].version : aws_lambda_function.default[0].version) : null
 
   maximum_event_age_in_seconds = var.maximum_event_age_in_seconds
   maximum_retry_attempts       = var.maximum_retry_attempts
@@ -277,8 +277,8 @@ resource "aws_lambda_function_event_invoke_config" "this" {
 resource "aws_lambda_permission" "current_version_triggers" {
   for_each = var.create && var.create_function && !var.create_layer && var.create_current_version_allowed_triggers ? var.allowed_triggers : {}
 
-  function_name = aws_lambda_function.this[0].function_name
-  qualifier     = aws_lambda_function.this[0].version
+  function_name = var.ignore_environment_variables ? aws_lambda_function.ignore_environment_variables[0].function_name : aws_lambda_function.default[0].function_name
+  qualifier     = var.ignore_environment_variables ? aws_lambda_function.ignore_environment_variables[0].version : aws_lambda_function.default[0].version
 
   statement_id       = lookup(each.value, "statement_id", each.key)
   action             = lookup(each.value, "action", "lambda:InvokeFunction")
@@ -292,7 +292,7 @@ resource "aws_lambda_permission" "current_version_triggers" {
 resource "aws_lambda_permission" "unqualified_alias_triggers" {
   for_each = var.create && var.create_function && !var.create_layer && var.create_unqualified_alias_allowed_triggers ? var.allowed_triggers : {}
 
-  function_name = aws_lambda_function.this[0].function_name
+  function_name = var.ignore_environment_variables ? aws_lambda_function.ignore_environment_variables[0].function_name : aws_lambda_function.default[0].function_name
 
   statement_id       = lookup(each.value, "statement_id", each.key)
   action             = lookup(each.value, "action", "lambda:InvokeFunction")
@@ -305,7 +305,7 @@ resource "aws_lambda_permission" "unqualified_alias_triggers" {
 resource "aws_lambda_event_source_mapping" "this" {
   for_each = var.create && var.create_function && !var.create_layer && var.create_unqualified_alias_allowed_triggers ? var.event_source_mapping : tomap({})
 
-  function_name = aws_lambda_function.this[0].arn
+  function_name = var.ignore_environment_variables ? aws_lambda_function.ignore_environment_variables[0].arn : aws_lambda_function.default[0].arn
 
   event_source_arn = each.value.event_source_arn
 
