@@ -187,6 +187,12 @@ variable "image_config_working_directory" {
   default     = null
 }
 
+variable "ignore_environment_variables" {
+  description = "Whether to ignore changes to the function's environment variables. Set to true if you manage infrastructure and environment variables separately."
+  type        = bool
+  default     = false
+}
+
 ########
 # Layer
 ########
